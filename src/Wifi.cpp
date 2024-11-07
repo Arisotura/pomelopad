@@ -601,7 +601,6 @@ u8 Read8(u32 func, u32 addr)
     else if (func == 2)
     {
         // FIFO
-        printf("F2 read: %02X - %d\n", TXMailbox.Peek(), TXMailbox.Level());
         if (TXMailbox.IsEmpty()) return 0;
         return TXMailbox.Read();
     }
@@ -676,7 +675,6 @@ void Write8(u32 func, u32 addr, u8 val)
     else if (func == 2)
     {
         // FIFO
-        printf("F2 WRITE: %02X, level=%d\n", val, RXMailbox.Level());
         RXMailbox.Write(val);
 
         if (RXMailbox.Level() < 4)
@@ -762,7 +760,7 @@ void Cmd53(u32 arg)
     }
     else
         TransferLen = len;
-printf("CMD53 %08X, addr=%d:%05X len=%08X (%03X)\n", arg, TransferFunc, TransferAddr, TransferLen, len);
+
     if (arg & (1<<31))
     {
         // write

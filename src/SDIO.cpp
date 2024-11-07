@@ -95,7 +95,6 @@ void Reset()
 
 void SetIRQ(int irq)
 {
-    printf("SDIO::SetIRQ(%d): %04X %04X %04X\n", irq, 1<<irq, IRQEnable, IRQSignalEnable);
     if (!(IRQEnable & (1<<irq)))
         return;
 
@@ -151,7 +150,7 @@ void RequestBlockRead()
 
             CurBlock++;
         }
-printf("DMA read done\n");
+
         SetIRQ(IRQ_TransferDone);
         Transferring = false;
     }
@@ -174,7 +173,7 @@ printf("DMA read done\n");
         SetIRQ(IRQ_DataReadReady);
 
         if (CurBlock >= BlockCount)
-        {printf("normal read done\n");
+        {
             SetIRQ(IRQ_TransferDone);
             Transferring = false;
         }
@@ -273,7 +272,6 @@ void WriteDataBuffer(u8 val)
 
 void StartTransfer(bool write)
 {
-    printf("StartTransfer(%d)\n", write);
     if (write)
     {
         CurBlock = 0;
@@ -434,7 +432,6 @@ void Write16(u32 addr, u16 val)
         return;
 
     case 0x30:
-        printf("IRQ ack: %04X @ %08X\n", val, WUP::GetPC());
         IRQFlags &= ~val;
         return;
     case 0x32:
@@ -447,7 +444,6 @@ void Write16(u32 addr, u16 val)
         ErrorIRQEnable = val;
         return;
     case 0x38:
-        printf("IRQ signal  %04X\n", val);
         IRQSignalEnable = val;
         return;
     case 0x3A:
