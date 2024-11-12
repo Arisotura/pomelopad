@@ -50,7 +50,7 @@ int main()
     if (!renderer)
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
 
-    SDL_Texture* framebuf = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, 854, 480);
+    SDL_Texture* framebuf = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 854, 480);
     if (!framebuf)
     {
         printf("texture shat itself :(\n");
