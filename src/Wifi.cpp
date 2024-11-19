@@ -101,13 +101,16 @@ u32 SgiTx;
 u32 SgiRx;
 u32 AmpduTxfailEvent;
 u32 AcRemapMode;
-u8 EventMsgs[0x10];
+u8 EventMsgs[12];
 u32 Ampdu;
 u32 Country;
 u32 Lifetime;
 
 u32 RadioDisable;
 u32 Srl, Lrl;
+
+u32 BcnTimeout;
+u32 SupWpa;
 
 struct sVarEntry
 {
@@ -125,6 +128,17 @@ sVarEntry _varEntry(u8* data, u32 len)
 
 std::unordered_map<std::string, sVarEntry> VarMap;
 
+// WIFI RESPONSES
+//
+// event:
+// 00000000: 0C 00 F3 FF 00 01 00 0C 00 04 00 00 00 00 00 00
+/*
+        00000000: 2A 00 D5 FF 01 00 00 0C 00 06 00 00 06 01 00 00
+        00000010: 0E 00 00 00 00 00 01 00 00 00 00 00 40 F4 07 EA
+        00000020: 66 19 68 65 72 61 64 64 72 00 00 00 00 00 00 00
+        00000030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+         */
+
 
 bool Init()
 {
@@ -134,10 +148,13 @@ bool Init()
     VarMap["sgi_rx"] = _varEntry((u8*)&SgiRx, 4);
     VarMap["ampdu_txfail_event"] = _varEntry((u8*)&AmpduTxfailEvent, 4);
     VarMap["ac_remap_mode"] = _varEntry((u8*)&AcRemapMode, 4);
-    VarMap["event_msgs"] = _varEntry(EventMsgs, 0x10);
+    VarMap["event_msgs"] = _varEntry(EventMsgs, 12);
     VarMap["ampdu"] = _varEntry((u8*)&Ampdu, 4);
     VarMap["country"] = _varEntry((u8*)&Country, 4);
     VarMap["lifetime"] = _varEntry((u8*)&Lifetime, 4);
+
+    VarMap["bcn_timeout"] = _varEntry((u8*)&BcnTimeout, 4);
+    VarMap["sup_wpa"] = _varEntry((u8*)&SupWpa, 4);
 
     return true;
 }
@@ -188,19 +205,25 @@ void Reset()
 
     memset(Scratch, 0, sizeof(Scratch));
 
+    memset(EventMsgs, 0, sizeof(EventMsgs));
+    EventMsgs[6] = 0x40;
+
     RoamOff = 1;
     SgiTx = 0;
     SgiRx = 0;
     AmpduTxfailEvent = 0;
     AcRemapMode = 0;
-    memset(EventMsgs, 0, sizeof(EventMsgs));
-    Ampdu = 0;
-    Country = 0;
+    Ampdu = 1;
+    Country = 0x4C41;
     Lifetime = 0;
 
-    RadioDisable = 0;
-    Srl = 0;
+    RadioDisable = 1;
+    Srl = 7;
     Lrl = 0;
+
+    // TODO
+    BcnTimeout = 0;
+    SupWpa = 0;
 }
 
 
@@ -312,6 +335,7 @@ void MakeIoctlRespHeader(u32 ioctl, u32 datalen, u8 seqno, u32 reqid, u32 status
 void IoctlGetVar(u8* data, u32 datalen, u8 seqno, u32 reqid)
 {
     char* var = (char*)data;
+    printf("WIFI: GetVar %s\n", var);
     if (VarMap.count(var))
     {
         auto& entry = VarMap[var];
@@ -327,12 +351,14 @@ void IoctlGetVar(u8* data, u32 datalen, u8 seqno, u32 reqid)
     }
 
     printf("IoctlGetVar: unknown var name %s\n", var);
+    exit(-1);
 }
 
 void IoctlSetVar(u8* data, u32 datalen, u8 seqno, u32 reqid)
 {
     char* var = (char*)data;
     u8* val = data + strlen(var) + 1;
+    printf("WIFI: SetVar %s\n", var);
 
     if (VarMap.count(var))
     {
@@ -354,15 +380,52 @@ void IoctlSetVar(u8* data, u32 datalen, u8 seqno, u32 reqid)
     }
 
     printf("IoctlSetVar: unknown var name %s\n", var);
+    exit(-1);
 }
 
 void HandleIoctl(u8 seqno, u16 opc, u8* data, u32 datalen, u32 reqid)
 {
+    printf("WIFI: IOCTL %d  len=%d\n", opc, datalen);
     switch (opc)
     {
     case 2: // up
         MakeIoctlRespHeader(opc, 4, seqno, reqid);
-        // TODO what should this return??
+        MB_Write32(1);
+        // TODO
+        MB_Signal();
+        return;
+
+    case 3: // down
+        MakeIoctlRespHeader(opc, 4, seqno, reqid);
+        MB_Write32(1);
+        // TODO
+        MB_Signal();
+        return;
+
+    case 20: // set infra
+        MakeIoctlRespHeader(opc, 4, seqno, reqid);
+        MB_Write32(1);
+        // TODO
+        MB_Signal();
+        return;
+
+    case 22: // set auth
+        MakeIoctlRespHeader(opc, 4, seqno, reqid);
+        MB_Write32(1);
+        // TODO
+        MB_Signal();
+        return;
+
+    case 26: // set SSID
+        // TODO join network!!
+        {
+            char ssid[33];
+            u32 ssidlen = *(u32*)&data[0];
+            memset(ssid, 0, 33);
+            memcpy(ssid, &data[4], ssidlen);
+            printf(" - JOIN NETWORK %s\n", ssid);
+        }
+        MakeIoctlRespHeader(opc, 4, seqno, reqid);
         MB_Write32(1);
         MB_Signal();
         return;
@@ -370,9 +433,9 @@ void HandleIoctl(u8 seqno, u16 opc, u8* data, u32 datalen, u32 reqid)
     case 29: // get channel
         MakeIoctlRespHeader(opc, 12, seqno, reqid);
         // TODO make not hardcoded
-        MB_Write32(7);
-        MB_Write32(7);
-        MB_Write32(7);
+        MB_Write32(0);
+        MB_Write32(0);
+        MB_Write32(0);
         MB_Signal();
         return;
 
@@ -397,17 +460,36 @@ void HandleIoctl(u8 seqno, u16 opc, u8* data, u32 datalen, u32 reqid)
         MB_Signal();
         return;
 
+    case 38: // set radio disable
+        MakeIoctlRespHeader(opc, 4, seqno, reqid);
+        MB_Write32(1); // TODO
+        MB_Signal();
+        return;
+
     case 61: // get TX antenna
     case 63: // get antenna div?
         MakeIoctlRespHeader(opc, 4, seqno, reqid);
-        // TODO how much shit does it even return??
-        MB_Write32(0);
+        MB_Write32(3);
+        MB_Signal();
+        return;
+
+    case 134: // set wsec
+        MakeIoctlRespHeader(opc, 4, seqno, reqid);
+        MB_Write32(1);
+        // TODO
         MB_Signal();
         return;
 
     case 142: // set band
         MakeIoctlRespHeader(opc, datalen, seqno, reqid);
         MB_Pad(datalen + 0x1C); // checkme
+        MB_Signal();
+        return;
+
+    case 165: // set WPA auth
+        MakeIoctlRespHeader(opc, 4, seqno, reqid);
+        MB_Write32(1);
+        // TODO
         MB_Signal();
         return;
 
@@ -418,6 +500,13 @@ void HandleIoctl(u8 seqno, u16 opc, u8* data, u32 datalen, u32 reqid)
     case 263: // set variable
         IoctlSetVar(data, datalen, seqno, reqid);
         return;
+
+    case 268: // set WPA password
+        MakeIoctlRespHeader(opc, 4, seqno, reqid);
+        MB_Write32(1);
+        // TODO
+        MB_Signal();
+        return;
     }
 
     printf("HandleIoctl: unknown ioctl %d, len=%d\n", opc, datalen);
@@ -427,6 +516,7 @@ void HandleIoctl(u8 seqno, u16 opc, u8* data, u32 datalen, u32 reqid)
         printf("%02X ", data[i]);
         if ((i&0xF)==0xF) printf("\n");
     }
+    exit(-1);
 }
 
 void HandleMessage()
@@ -567,10 +657,19 @@ u8 Read8(u32 func, u32 addr)
         {
         case 0x00002: return FuncEnable;
         case 0x00003: return FuncReady;
+        case 0x00009: return 0x00;
+        case 0x0000A: return 0x10;
+        case 0x0000B: return 0x00;
 
+        case 0x00109: return 0x03;
+        case 0x0010A: return 0x10;
+        case 0x0010B: return 0x00;
         case 0x00110: return F1BlockSize & 0xFF;
         case 0x00111: return F1BlockSize >> 8;
 
+        case 0x00209: return 0x03;
+        case 0x0020A: return 0x10;
+        case 0x0020B: return 0x00;
         case 0x00210: return F2BlockSize & 0xFF;
         case 0x00211: return F2BlockSize >> 8;
         }

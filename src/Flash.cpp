@@ -160,10 +160,6 @@ void Write(u8 val)
             CurAddr = (CurAddr << 8) | val;
         printf("SPI03: byte=%d len=%d addr=%08X\n", ByteCount, AddrLen, CurAddr);
         break;
-
-    case 0x9F:
-        CurAddr = 0;
-        break;
     }
 
     ByteCount++;

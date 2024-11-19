@@ -28,6 +28,8 @@ bool Init();
 void DeInit();
 void Reset();
 
+void SetTouchCoords(bool touching, int x, int y);
+
 void Select();
 void Release();
 u8 Read();

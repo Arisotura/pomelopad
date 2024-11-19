@@ -333,6 +333,7 @@ u32 RunFrame()
     if (runFrame)
     {
         //GPU::StartFrame();
+        //SetIRQ(0x15);
 
         while (Running)// && GPU::TotalScanlines==0)
         {
@@ -350,9 +351,11 @@ u32 RunFrame()
         }
 
         //SPU::TransferOutput();
+        //printf("%08d: PC=%08X\n", NumFrames, ARM9->R[15]);
 
         // TODO: this should be done on VBlank
         SetIRQ(0x16);
+        SetIRQ(0x1E);// HACK
         Video::RenderFrame();
     }
 
@@ -449,6 +452,11 @@ void SoftReset()
     }
 }
 
+
+void SetTouchCoords(bool touching, int x, int y)
+{
+    UIC::SetTouchCoords(touching, x, y);
+}
 
 /*void TouchScreen(u16 x, u16 y)
 {
@@ -673,6 +681,8 @@ void debug(u32 param)
 
 u8 ARM9Read8(u32 addr)
 {
+    //if (addr==(0x00154258+0xD)) return 1;
+    //if (addr==(0x00140869)) return 0;
     if (addr < 0x40000000)
     {
         return *(u8*)&MainRAM[addr & 0x3FFFFF];
@@ -876,6 +886,8 @@ u32 ARM9IORead32(u32 addr)
     case 0xF00050F4:
     case 0xF00050F8:
     case 0xF00050FC: return SPI::Read(addr);
+
+    case 0xF0005434: return 0x4; // HACK
     }
 
     printf("unknown IO read32 %08X @ %08X\n", addr, ARM9->R[15]);

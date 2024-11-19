@@ -59,6 +59,9 @@ int main()
 
     WUP::Start();
 
+    bool touch = false;
+    int touchX = 0, touchY = 0;
+
     bool quit = false;
     for (;;)
     {
@@ -70,9 +73,37 @@ int main()
             case SDL_QUIT:
                 quit = true;
                 break;
+
+            case SDL_MOUSEBUTTONDOWN:
+                if (evt.button.button == SDL_BUTTON_LEFT)
+                {
+                    touch = true;
+                    touchX = evt.button.x;
+                    touchY = evt.button.y;
+                }
+                break;
+
+            case SDL_MOUSEBUTTONUP:
+                if (evt.button.button == SDL_BUTTON_LEFT)
+                {
+                    touch = false;
+                    touchX = evt.button.x;
+                    touchY = evt.button.y;
+                }
+                break;
+
+            case SDL_MOUSEMOTION:
+                if (touch)
+                {
+                    touchX = evt.motion.x;
+                    touchY = evt.motion.y;
+                }
+                break;
             }
         }
         if (quit) break;
+
+        WUP::SetTouchCoords(touch, touchX, touchY);
 
         // run emulation here
         WUP::RunFrame();

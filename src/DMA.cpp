@@ -123,6 +123,11 @@ struct sSPDMA
             printf("SPDMA: unknown device %d\n", device);
             return;
         }
+
+        if (Cnt & (1<<0))
+            printf("DMA: [%08X]->SPI, length=%08X\n", MemAddr, Length);
+        else
+            printf("DMA: SPI->[%08X], length=%08X\n", MemAddr, Length);
     }
 
     void DoTransfer(u32 maxlength)
@@ -158,7 +163,6 @@ struct sSPDMA
             for (u32 i = 0; i < maxlength; i++)
             {
                 WUP::MainRAM[MemAddr] = fnread();
-                //printf("DMA: read, addr=%08X, val=%02X, length=%08X\n", MemAddr, WUP::MainRAM[MemAddr & 0x3FFFFF], Length);
                 MemAddr = (MemAddr + 1) & 0x3FFFFF;
                 Length = (Length - 1) & 0xFFFFF;
                 if (Length == 0xFFFFF) break;
@@ -245,12 +249,47 @@ struct sGPDMA
         if (Cnt & (1<<10))
         {
             // simple fill
-            printf("GPDMA: simple fill TODO\n");
+            u32 chunk = ChunkSize;
+            if (chunk == 0) chunk = Length + 1; // checkme
+
+            int dstinc;
+            dstinc = 1;
+
+            u8 fill[2];
+            fill[0] = Fill1 & 0xFF;
+            if (Cnt & (1<<6))
+                fill[1] = (Fill1 >> 8) & 0xFF;
+            else
+                fill[1] = fill[0];
+
+            for (;;)
+            {
+                u32 nextdst = DstAddr + (DstStride * dstinc);
+
+                for (u32 i = 0; i < chunk; i++)
+                {
+                    WUP::MainRAM[DstAddr] = fill[i & 1];
+                    DstAddr = (DstAddr + dstinc) & 0x3FFFFF;
+                    Length = (Length - 1) & 0xFFFFFF;
+                    if (Length == 0xFFFFFF) break;
+                }
+
+                if (Length == 0xFFFFFF)
+                {
+                    // CHECKME: are addresses updated correctly in this situation?
+                    Start &= ~(1<<0);
+                    WUP::SetIRQ(IRQ);
+                    return;
+                }
+
+                DstAddr = nextdst & 0x3FFFFF;
+            }
         }
         else if (Cnt & (1<<7))
         {
             // masked fill
             printf("GPDMA: masked fill TODO\n");
+            exit(-1);
         }
         else
         {
