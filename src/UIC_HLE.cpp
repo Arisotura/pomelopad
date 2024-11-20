@@ -48,6 +48,56 @@ bool Touching;
 u16 TouchX, TouchY;
 
 
+u16 CRC16(u8* data, u32 len)
+{
+    u16 crc = 0xFFFF;
+
+    for (u32 i = 0; i < len; i++)
+    {
+        crc ^= data[i];
+        for (u32 j  = 0; j < 8; j++)
+        {
+            if (crc & 0x1)
+                crc = (crc >> 1) ^ 0x8408;
+            else
+                crc >>= 1;
+        }
+    }
+
+    return crc;
+}
+
+void PatchTouchscreenCalib()
+{
+    // 53 94 802 451
+    u16 scr1[2] = {50, 30};
+    u16 scr2[2] = {804, 450};
+    u16 raw1[2], raw2[2];
+
+    raw1[0] = ((scr1[0] << 12) / 854);
+    raw1[1] = 0xFFF - ((scr1[1] << 12) / 480);
+    raw2[0] = ((scr2[0] << 12) / 854);
+    raw2[1] = 0xFFF - ((scr2[1] << 12) / 480);
+
+    u16* calib;
+    u16 calibaddrs[3] = {0x244, 0x153, 0x1D3};
+    for (int i = 0; i < 3; i++)
+    {
+        u16 addr = calibaddrs[i];
+        calib = (u16*)&EEPROM[addr];
+        calib[0] = scr1[0];
+        calib[1] = scr1[1];
+        calib[2] = scr2[0];
+        calib[3] = scr2[1];
+        calib[4] = raw1[0];
+        calib[5] = raw1[1];
+        calib[6] = raw2[0];
+        calib[7] = raw2[1];
+        calib[8] = CRC16(&EEPROM[addr], 16);
+    }
+}
+
+
 bool Init()
 {
     return true;
@@ -77,6 +127,8 @@ void Reset()
     }
     else
         printf("UIC_HLE: failed to open uic_config.bin\n");
+
+    PatchTouchscreenCalib();
 
     // pretend the battery is all good
     InputData[0x04] = 0x21;
