@@ -24,6 +24,31 @@
 
 using namespace std;
 
+int keymap[] = {
+    SDL_SCANCODE_DOWN, // down
+    SDL_SCANCODE_UP, // up
+    SDL_SCANCODE_RIGHT, // right
+    SDL_SCANCODE_LEFT, // left
+    SDL_SCANCODE_A, // Y
+    SDL_SCANCODE_W, // X
+    SDL_SCANCODE_S, // B
+    SDL_SCANCODE_D, // A
+    SDL_SCANCODE_TAB, // sync
+    SDL_SCANCODE_H, // home
+    SDL_SCANCODE_SPACE, // minus
+    SDL_SCANCODE_RETURN, // plus
+    SDL_SCANCODE_P, // R
+    SDL_SCANCODE_Q, // L
+    SDL_SCANCODE_N, // ZR
+    SDL_SCANCODE_Z, // ZL
+
+    SDL_SCANCODE_T, // TV
+    SDL_SCANCODE_B, // R3
+    SDL_SCANCODE_X, // L3
+
+    -1
+};
+
 int main()
 {
     SDL_Init(SDL_INIT_VIDEO);
@@ -59,6 +84,7 @@ int main()
 
     WUP::Start();
 
+    u32 keymask = 0;
     bool touch = false;
     int touchX = 0, touchY = 0;
 
@@ -72,6 +98,22 @@ int main()
             {
             case SDL_QUIT:
                 quit = true;
+                break;
+
+            case SDL_KEYDOWN:
+                for (int i = 0; keymap[i] != -1; i++)
+                {
+                    if (evt.key.keysym.scancode == keymap[i])
+                        keymask |= (1<<i);
+                }
+                break;
+
+            case SDL_KEYUP:
+                for (int i = 0; keymap[i] != -1; i++)
+                {
+                    if (evt.key.keysym.scancode == keymap[i])
+                        keymask &= ~(1<<i);
+                }
                 break;
 
             case SDL_MOUSEBUTTONDOWN:
@@ -103,6 +145,7 @@ int main()
         }
         if (quit) break;
 
+        WUP::SetKeyMask(keymask);
         WUP::SetTouchCoords(touch, touchX, touchY);
 
         // run emulation here

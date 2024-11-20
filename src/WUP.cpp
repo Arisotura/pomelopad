@@ -453,6 +453,11 @@ void SoftReset()
 }
 
 
+void SetKeyMask(u32 mask)
+{
+    UIC::SetKeyMask(mask);
+}
+
 void SetTouchCoords(bool touching, int x, int y)
 {
     UIC::SetTouchCoords(touching, x, y);
@@ -887,6 +892,7 @@ u32 ARM9IORead32(u32 addr)
     case 0xF00050F8:
     case 0xF00050FC: return SPI::Read(addr);
 
+    case 0xF0005400: return 0x400000; // HACK
     case 0xF0005434: return 0x4; // HACK
     }
 

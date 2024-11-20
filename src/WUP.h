@@ -108,6 +108,7 @@ bool LoadFirmware(const char* filename);
 u32 RunFrame();
 u32* GetFramebuffer();
 
+void SetKeyMask(u32 mask);
 void SetTouchCoords(bool touching, int x, int y);
 /*void TouchScreen(u16 x, u16 y);
 void ReleaseScreen();

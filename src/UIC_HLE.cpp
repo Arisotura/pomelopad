@@ -43,6 +43,7 @@ u8 InputData[0x80];
 u8 InputSeq;
 
 // input stuff
+u32 KeyMask;
 bool Touching;
 u16 TouchX, TouchY;
 
@@ -80,11 +81,17 @@ void Reset()
     // pretend the battery is all good
     InputData[0x04] = 0x21;
 
+    KeyMask = 0;
     Touching = false;
     TouchX = 0;
     TouchY = 0;
 }
 
+
+void SetKeyMask(u32 mask)
+{
+    KeyMask = mask;
+}
 
 void SetTouchCoords(bool touching, int x, int y)
 {
@@ -112,6 +119,11 @@ void PrepareInputData()
     InputData[0] = FWVersion[0];
     InputData[1] = InputSeq++;
     InputData[127] = ~InputData[0];
+
+    // keypad
+    InputData[0x02] = KeyMask & 0xFF;
+    InputData[0x03] = (KeyMask >> 8) & 0xFF;
+    InputData[0x50] = (KeyMask >> 11) & 0xE0;
 
     // touch data
     u8* touchdata = &InputData[0x24];
@@ -165,7 +177,7 @@ u8 Read()
         return 0;
 
     case 0x05: // get UIC state
-        return 5;
+        return 7;
         return 0; // normal
         return 7; // debug mode
 
@@ -196,9 +208,22 @@ void Write(u8 val)
 
         switch (Cmd)
         {
+        case 0x02:
+            CurAddr = 0;
+            AccessSize = 0;
+            break;
+
         case 0x03:
             CurAddr = 0;
             AccessSize = 0;
+            break;
+
+        case 0x04:
+            // TODO writeback EEPROM
+            break;
+
+        case 0x06:
+            // TODO something?
             break;
 
         case 0x07:
@@ -220,6 +245,24 @@ void Write(u8 val)
     case 0x01:
         printf("UIC state = %d\n", val);
         // TODO
+        break;
+
+    case 0x02:
+        if (ByteCount == 1) CurAddr = val << 8;
+        else if (ByteCount == 2) CurAddr |= val;
+        else if (ByteCount == 3)
+        {
+            AccessSize = val;
+            if (CurAddr < 0x1100 || (CurAddr + AccessSize) > 0x1800)
+                AccessSize = 0;
+        }
+        else if (AccessSize)
+        {
+            AccessSize--;
+            u32 addr = CurAddr - 0x1100;
+            CurAddr++;
+            if (addr < 0x700) EEPROM[addr] = val;
+        }
         break;
 
     case 0x03:

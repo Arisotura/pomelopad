@@ -43,6 +43,10 @@ const u8 ChipID[20] = {0x20, 0xBA, 0x19, 0x10, 0x00, 0x00, 0x23, 0x21,
                        0x61, 0x34, 0x07, 0x00, 0x30, 0x00, 0x17, 0x17,
                        0x06, 0x12, 0x4B, 0x01};
 
+u8 WriteBuffer[0x100];
+u8 WriteStart;
+u32 WriteLen;
+
 
 bool Init()
 {
@@ -64,6 +68,10 @@ void Reset()
     AddrLen = 3;
 
     CurAddr = 0;
+
+    memset(WriteBuffer, 0, 0x100);
+    WriteStart = 0;
+    WriteLen = 0;
 }
 
 
@@ -110,7 +118,37 @@ void Select()
 
 void Release()
 {
-    // TODO finalize writes here
+    bool writeback = false;
+
+    if (Cmd == 0x02)
+    {
+        // page program
+        u32 addr = CurAddr;
+        for (u32 i = 0; i < WriteLen; i++)
+        {
+            u8 offset = WriteStart + i;
+            Data[addr] = WriteBuffer[offset];
+            addr = (addr & ~0xFF) | ((addr + 1) & 0xFF);
+        }
+
+        writeback = true;
+    }
+    else if (Cmd == 0x20)
+    {
+        // subsector erase
+        u32 start = CurAddr & ~0xFFF;
+        for (u32 i = start; i < start+0x1000; i++)
+            Data[i] = 0xFF;
+
+        writeback = true;
+    }
+
+    if (writeback)
+    {
+        StatusReg &= ~(1<<1);
+
+        // TODO
+    }
 }
 
 u8 Read()
@@ -142,8 +180,18 @@ void Write(u8 val)
 
         switch (Cmd)
         {
+        case 0x02:
+            if (!(StatusReg & (1<<1))) Cmd = 0;
+            WriteStart = 0;
+            WriteLen = 0;
+            break;
+
         case 0x04: StatusReg &= ~(1<<1); break;
         case 0x06: StatusReg |= (1<<1); break;
+
+        case 0x20:
+            if (!(StatusReg & (1<<1))) Cmd = 0;
+            break;
 
         case 0xB7: AddrLen = 4; break;
         case 0xE9: AddrLen = 3; break;
@@ -155,10 +203,31 @@ void Write(u8 val)
 
     switch (Cmd)
     {
+    case 0x02:
+        if (ByteCount <= AddrLen)
+            CurAddr = (CurAddr << 8) | val;
+        else
+        {
+            u8 offset = WriteStart + WriteLen;
+            WriteBuffer[offset] = val;
+            if (WriteLen == 0x100)
+                WriteStart++;
+            else
+                WriteLen++;
+        }
+        printf("SPI02: byte=%d len=%d addr=%08X\n", ByteCount, AddrLen, CurAddr);
+        break;
+
     case 0x03:
         if (ByteCount <= AddrLen)
             CurAddr = (CurAddr << 8) | val;
         printf("SPI03: byte=%d len=%d addr=%08X\n", ByteCount, AddrLen, CurAddr);
+        break;
+
+    case 0x20:
+        if (ByteCount <= AddrLen)
+            CurAddr = (CurAddr << 8) | val;
+        printf("SPI20: byte=%d len=%d addr=%08X\n", ByteCount, AddrLen, CurAddr);
         break;
     }
 
