@@ -125,9 +125,9 @@ void UpdateChipSelect()
 
     switch (CurDevice)
     {
-    case 0: printf("SPI: no device selected\n"); break;
+    /*case 0: printf("SPI: no device selected\n"); break;
     case 1: printf("SPI: selected FLASH\n"); break;
-    case 2: printf("SPI: selected UIC\n"); break;
+    case 2: printf("SPI: selected UIC\n"); break;*/
     case 3: printf("SPI: SYNESTHESIA!!\n"); break;
     }
 
@@ -161,7 +161,7 @@ void StartRead()
 
     // TODO: is it possible to change this while a read is in progress?
     ReadRemaining = ReadLength;
-    printf("SPI: start read, length=%08X\n", ReadLength);
+    //printf("SPI: start read, length=%08X\n", ReadLength);
 
     Busy = true;
     UpdateChipSelect();

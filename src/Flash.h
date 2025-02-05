@@ -29,6 +29,7 @@ void DeInit();
 void Reset();
 
 bool LoadFirmware(const char* filename);
+bool LoadBootAndFw(const char* boot, const char* fw);
 void SetupBootloader();
 
 void Select();

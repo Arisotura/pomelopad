@@ -124,10 +124,10 @@ struct sSPDMA
             return;
         }
 
-        if (Cnt & (1<<0))
+        /*if (Cnt & (1<<0))
             printf("DMA: [%08X]->SPI, length=%08X\n", MemAddr, Length);
         else
-            printf("DMA: SPI->[%08X], length=%08X\n", MemAddr, Length);
+            printf("DMA: SPI->[%08X], length=%08X\n", MemAddr, Length);*/
     }
 
     void DoTransfer(u32 maxlength)
@@ -288,8 +288,72 @@ struct sGPDMA
         else if (Cnt & (1<<7))
         {
             // masked fill
-            printf("GPDMA: masked fill TODO\n");
-            exit(-1);
+            u32 srcmode = (Cnt >> 2) & 0xF;
+            if (srcmode != 0xC)
+                printf("GPDMA: unusual maskedfill srcmode %X\n", srcmode);
+
+            u32 chunk = ChunkSize;
+            if (chunk == 0) chunk = Length + 1; // checkme
+
+            int srcinc, dstinc;
+            if (srcmode == 0x3)
+                srcinc = -1;
+            else if (srcmode == 0xC)
+                srcinc = 1;
+            else
+                return;
+
+            dstinc = 1;
+
+            if (Cnt & (1<<6)) printf("GPDMA: 16bit maskedfill??\n");
+            if (Cnt & (1<<9)) printf("GPDMA: backwards maskedfill??\n");
+
+            // TODO handle 16bit mode?
+            u8 fill[2];
+            fill[0] = Fill1 & 0xFF;
+            fill[1] = Fill2 & 0xFF;
+
+            for (;;)
+            {
+                u32 nextsrc = SrcAddr + ((DstStride >> 3) * srcinc);
+                u32 nextdst = DstAddr + (DstStride * dstinc);
+                int nbits = 0;
+                u8 srcdata = 0;
+
+                for (u32 i = 0; i < chunk; i++)
+                {
+                    if (nbits == 0)
+                    {
+                        // load source data if needed
+                        srcdata = WUP::MainRAM[SrcAddr];
+                        nbits = 8;
+                        SrcAddr = (SrcAddr + srcinc) & 0x3FFFFF;
+                    }
+
+                    if (srcdata & 0x80)
+                        WUP::MainRAM[DstAddr] = fill[0];
+                    else if (!(Cnt & (1<<8)))
+                        WUP::MainRAM[DstAddr] = fill[1];
+
+                    srcdata <<= 1;
+                    nbits--;
+
+                    DstAddr = (DstAddr + dstinc) & 0x3FFFFF;
+                    Length = (Length - 1) & 0xFFFFFF;
+                    if (Length == 0xFFFFFF) break;
+                }
+
+                if (Length == 0xFFFFFF)
+                {
+                    // CHECKME: are addresses updated correctly in this situation?
+                    Start &= ~(1<<0);
+                    WUP::SetIRQ(IRQ);
+                    return;
+                }
+
+                SrcAddr = nextsrc & 0x3FFFFF;
+                DstAddr = nextdst & 0x3FFFFF;
+            }
         }
         else
         {

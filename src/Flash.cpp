@@ -93,6 +93,58 @@ bool LoadFirmware(const char* filename)
     // language bank in firmware should match UIC setting (or vice versa)
     memcpy(&Data[0x1100000], &Data[0x900000], 0x800000);
 
+    /*memcpy(&Data[0x0100000], &Data[0x1C00000], 0x400000);
+    Data[0xF000] = 0;
+    // B5FE8 -> nop 0100 0110 1100 0000 46C0
+    *(u16*)&Data[0x100074+0xB5FE8] = 0x46C0;
+    *(u16*)&Data[0x100074+0xB6096] = 0x46C0;
+    f = fopen("fwdebug.bin", "wb");
+    fwrite(Data, kSize, 1, f);
+    fclose(f);*/
+
+    return true;
+}
+
+bool LoadBootAndFw(const char* boot, const char* fw)
+{
+    memset(Data, 0xFF, kSize);
+
+    FILE* f;
+    u32 len;
+
+    f = fopen(boot, "rb");
+    if (!f)
+    {
+        printf("failed to open bootloader\n");
+        return false;
+    }
+
+    fseek(f, 0, SEEK_END);
+    len = ftell(f);
+    if (len > 0xE000)
+        len = 0xE000;
+    fseek(f, 0, SEEK_SET);
+    fread(Data, len, 1, f);
+    fclose(f);
+
+    Data[0xF000] = 0;
+    u32 fwoffset = 0x100000;
+
+    f = fopen(fw, "rb");
+    if (!f)
+    {
+        printf("failed to open firmware\n");
+        return false;
+    }
+
+    fseek(f, 0, SEEK_END);
+    len = ftell(f);
+    if ((fwoffset + len) > kSize)
+        len = kSize - fwoffset;
+    fseek(f, 0, SEEK_SET);
+    fread(&Data[fwoffset], len, 1, f);
+    fclose(f);
+
     return true;
 }
 

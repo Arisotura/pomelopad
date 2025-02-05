@@ -37,6 +37,7 @@ add_executable(pomelopad
         src/Video.cpp
         src/SDIO.cpp
         src/Wifi.cpp
+        src/Audio.cpp
 )
 
 target_link_libraries(pomelopad ${SDL2_LIBRARIES})

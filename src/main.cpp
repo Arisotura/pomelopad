@@ -55,8 +55,9 @@ int main()
     printf("pomelopad 0.1 or something\n");
 
     WUP::Init();
-    if (!WUP::LoadFirmware("firmware.bin"))
+    //if (!WUP::LoadFirmware("firmware.bin"))
     //if (!WUP::LoadFirmware("firmware_recent.bin"))
+    if (!WUP::LoadBootAndFw("bootloader.bin", "melonpad.fw"))
     {
         printf("failed to load firmware.bin\n");
         WUP::DeInit();
@@ -105,7 +106,17 @@ int main()
                 {
                     if (evt.key.keysym.scancode == keymap[i])
                         keymask |= (1<<i);
+                    if (evt.key.keysym.scancode == keymap[i])
+                        printf("pressed key %d\n", i);
                 }
+                if (evt.key.keysym.scancode == SDL_SCANCODE_Y)
+                    WUP::SetVolume(0);
+                if (evt.key.keysym.scancode == SDL_SCANCODE_U)
+                    WUP::SetVolume(85);
+                if (evt.key.keysym.scancode == SDL_SCANCODE_I)
+                    WUP::SetVolume(170);
+                if (evt.key.keysym.scancode == SDL_SCANCODE_O)
+                    WUP::SetVolume(255);
                 break;
 
             case SDL_KEYUP:

@@ -359,6 +359,9 @@ void IoctlSetVar(u8* data, u32 datalen, u8 seqno, u32 reqid)
     char* var = (char*)data;
     u8* val = data + strlen(var) + 1;
     printf("WIFI: SetVar %s\n", var);
+    for (u32 i = 0; i < datalen-strlen(var)-1; i++)
+        printf("%02X:", val[i]);
+    printf("\n");
 
     if (VarMap.count(var))
     {
@@ -386,6 +389,9 @@ void IoctlSetVar(u8* data, u32 datalen, u8 seqno, u32 reqid)
 void HandleIoctl(u8 seqno, u16 opc, u8* data, u32 datalen, u32 reqid)
 {
     printf("WIFI: IOCTL %d  len=%d\n", opc, datalen);
+    for (u32 i = 0; i < datalen; i++)
+        printf("%02X:", data[i]);
+    printf("\n");
     switch (opc)
     {
     case 2: // up
@@ -477,6 +483,13 @@ void HandleIoctl(u8 seqno, u16 opc, u8* data, u32 datalen, u32 reqid)
         MakeIoctlRespHeader(opc, 4, seqno, reqid);
         MB_Write32(1);
         // TODO
+        MB_Signal();
+        return;
+
+    case 140: // get band list
+        MakeIoctlRespHeader(opc, 8, seqno, reqid);
+        MB_Write32(1); // band count
+        MB_Write32(1); // 5GHz
         MB_Signal();
         return;
 

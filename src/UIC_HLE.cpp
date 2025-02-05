@@ -46,6 +46,7 @@ u8 InputSeq;
 u32 KeyMask;
 bool Touching;
 u16 TouchX, TouchY;
+u8 Volume;
 
 
 u16 CRC16(u8* data, u32 len)
@@ -79,12 +80,11 @@ void PatchTouchscreenCalib()
     raw2[0] = ((scr2[0] << 12) / 854);
     raw2[1] = 0xFFF - ((scr2[1] << 12) / 480);
 
-    u16* calib;
     u16 calibaddrs[3] = {0x244, 0x153, 0x1D3};
     for (int i = 0; i < 3; i++)
     {
         u16 addr = calibaddrs[i];
-        calib = (u16*)&EEPROM[addr];
+        u16* calib = (u16*)&EEPROM[addr];
         calib[0] = scr1[0];
         calib[1] = scr1[1];
         calib[2] = scr2[0];
@@ -137,6 +137,7 @@ void Reset()
     Touching = false;
     TouchX = 0;
     TouchY = 0;
+    Volume = 255;
 }
 
 
@@ -163,6 +164,12 @@ void SetTouchCoords(bool touching, int x, int y)
         TouchX = 0;
         TouchY = 0;
     }
+}
+
+void SetVolume(u8 vol)
+{
+    Volume = vol;
+    printf("VOLUME = %d\n", vol);
 }
 
 
@@ -199,6 +206,9 @@ void PrepareInputData()
     {
         memset(touchdata, 0, 40);
     }
+
+    // volume
+    InputData[0x0E] = Volume;
 }
 
 
@@ -223,13 +233,14 @@ u8 Read()
         {
             AccessSize--;
             u32 addr = CurAddr - 0x1100;
+            printf("READ EEPROM %08X\n", CurAddr);
             CurAddr++;
             if (addr < 0x700) return EEPROM[addr];
         }
         return 0;
 
     case 0x05: // get UIC state
-        return 7;
+        return 0;
         return 0; // normal
         return 7; // debug mode
 
@@ -240,6 +251,9 @@ u8 Read()
     case 0x0B: // get firmware version
         if (CurAddr < 4) return FWVersion[CurAddr++];
         return 0;
+
+    case 0x0F: // get previous and current UIC state
+        return 7;
 
     case 0x13: // ??
         return 1;
@@ -256,7 +270,7 @@ void Write(u8 val)
     if (ByteCount == 0)
     {
         Cmd = val;
-        printf("UIC: cmd %02X\n", val);
+        //printf("UIC: cmd %02X\n", val);
 
         switch (Cmd)
         {
@@ -285,6 +299,10 @@ void Write(u8 val)
 
         case 0x0B:
             CurAddr = 0;
+            break;
+
+        default:
+            printf("UIC: unknown command %02X\n", val);
             break;
         }
 

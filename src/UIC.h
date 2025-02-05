@@ -30,6 +30,7 @@ void Reset();
 
 void SetKeyMask(u32 mask);
 void SetTouchCoords(bool touching, int x, int y);
+void SetVolume(u8 vol);
 
 void Select();
 void Release();

@@ -104,12 +104,14 @@ void Start();
 void SetARM9RegionTimings(u32 addrstart, u32 addrend, u32 region, int buswidth, int nonseq, int seq);
 
 bool LoadFirmware(const char* filename);
+bool LoadBootAndFw(const char* boot, const char* fw);
 
 u32 RunFrame();
 u32* GetFramebuffer();
 
 void SetKeyMask(u32 mask);
 void SetTouchCoords(bool touching, int x, int y);
+void SetVolume(u8 vol);
 /*void TouchScreen(u16 x, u16 y);
 void ReleaseScreen();
 

@@ -28,6 +28,7 @@
 #include "UART.h"
 #include "I2C.h"
 #include "AudioAmp.h"
+#include "Audio.h"
 #include "Camera.h"
 #include "LCD.h"
 #include "Video.h"
@@ -110,6 +111,7 @@ bool Init()
     if (!I2C::Init()) return false;
 
     if (!Video::Init()) return false;
+    if (!Audio::Init()) return false;
 
     if (!SDIO::Init()) return false;
     if (!Wifi::Init()) return false;
@@ -123,6 +125,7 @@ void DeInit()
     SDIO::DeInit();
 
     Video::DeInit();
+    Audio::DeInit();
 
     AudioAmp::DeInit();
     Camera::DeInit();
@@ -248,6 +251,7 @@ void Reset()
     I2C::Reset();
 
     Video::Reset();
+    Audio::Reset();
 
     SDIO::Reset();
     Wifi::Reset();
@@ -263,6 +267,17 @@ bool LoadFirmware(const char* filename)
     Reset();
 
     if (!Flash::LoadFirmware(filename))
+        return false;
+
+    Flash::SetupBootloader();
+    return true;
+}
+
+bool LoadBootAndFw(const char* boot, const char* fw)
+{
+    Reset();
+
+    if (!Flash::LoadBootAndFw(boot, fw))
         return false;
 
     Flash::SetupBootloader();
@@ -357,6 +372,7 @@ u32 RunFrame()
         SetIRQ(0x16);
         SetIRQ(0x1E);// HACK
         Video::RenderFrame();
+        Audio::framehack();
     }
 
     // In the context of TASes, frame count is traditionally the primary measure of emulated time,
@@ -461,6 +477,11 @@ void SetKeyMask(u32 mask)
 void SetTouchCoords(bool touching, int x, int y)
 {
     UIC::SetTouchCoords(touching, x, y);
+}
+
+void SetVolume(u8 vol)
+{
+    UIC::SetVolume(vol);
 }
 
 /*void TouchScreen(u16 x, u16 y)
@@ -688,6 +709,7 @@ u8 ARM9Read8(u32 addr)
 {
     //if (addr==(0x00154258+0xD)) return 1;
     //if (addr==(0x00140869)) return 0;
+    //printf("read8 %08X  @ %08X\n", addr, ARM9->R[15]);
     if (addr < 0x40000000)
     {
         return *(u8*)&MainRAM[addr & 0x3FFFFF];
@@ -709,6 +731,7 @@ u16 ARM9Read16(u32 addr)
 {
     addr &= ~0x1;
 
+    //printf("read16 %08X  @ %08X\n", addr, ARM9->R[15]);
     if (addr < 0x40000000)
     {
         return *(u16*)&MainRAM[addr & 0x3FFFFF];
@@ -730,6 +753,7 @@ u32 ARM9Read32(u32 addr)
 {
     addr &= ~0x3;
 
+    //printf("read32 %08X  @ %08X\n", addr, ARM9->R[15]);
     if (addr < 0x40000000)
     {
         return *(u32*)&MainRAM[addr & 0x3FFFFF];
@@ -749,6 +773,7 @@ u32 ARM9Read32(u32 addr)
 
 void ARM9Write8(u32 addr, u8 val)
 {
+    //printf("write8 %08X %02X  @ %08X\n", addr, val, ARM9->R[15]);
     if (addr < 0x40000000)
     {
         *(u8*)&MainRAM[addr & 0x3FFFFF] = val;
@@ -771,6 +796,7 @@ void ARM9Write16(u32 addr, u16 val)
 {
     addr &= ~0x1;
 
+    //printf("write16 %08X %04X  @ %08X\n", addr, val, ARM9->R[15]);
     if (addr < 0x40000000)
     {
         *(u16*)&MainRAM[addr & 0x3FFFFF] = val;
@@ -793,6 +819,7 @@ void ARM9Write32(u32 addr, u32 val)
 {
     addr &= ~0x3;
 
+    //printf("write32 %08X %08X  @ %08X\n", addr, val, ARM9->R[15]);
     if (addr < 0x40000000)
     {
         *(u32*)&MainRAM[addr & 0x3FFFFF] = val;
@@ -855,6 +882,7 @@ u32 ARM9IORead32(u32 addr)
     case 0xF0004100: return DMA::Read(addr);
     case 0xF0004400: return SPI::Read(addr);
     case 0xF0004C00: return UART::Read(addr);
+    case 0xF0005400: return Audio::Read(addr);
     case 0xF0005800:
     case 0xF0005C00:
     case 0xF0006000:
@@ -891,9 +919,6 @@ u32 ARM9IORead32(u32 addr)
     case 0xF00050F4:
     case 0xF00050F8:
     case 0xF00050FC: return SPI::Read(addr);
-
-    case 0xF0005400: return 0x400000; // HACK
-    case 0xF0005434: return 0x4; // HACK
     }
 
     printf("unknown IO read32 %08X @ %08X\n", addr, ARM9->R[15]);
@@ -926,6 +951,7 @@ void ARM9IOWrite32(u32 addr, u32 val)
     case 0xF0004100: DMA::Write(addr, val); return;
     case 0xF0004400: SPI::Write(addr, val); return;
     case 0xF0004C00: UART::Write(addr, val); return;
+    case 0xF0005400: Audio::Write(addr, val); return;
     case 0xF0005800:
     case 0xF0005C00:
     case 0xF0006000:
