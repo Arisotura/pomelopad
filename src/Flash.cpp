@@ -47,6 +47,12 @@ u8 WriteBuffer[0x100];
 u8 WriteStart;
 u32 WriteLen;
 
+u8 F2Mode;
+u16 F2Length;
+u16 F2Count;
+u8 F2DumpBuf[0x4000];
+int F2DumpCount;
+
 
 bool Init()
 {
@@ -72,6 +78,12 @@ void Reset()
     memset(WriteBuffer, 0, 0x100);
     WriteStart = 0;
     WriteLen = 0;
+
+    F2Mode = 0;
+    F2Length = 0;
+    F2Count = 0;
+    memset(F2DumpBuf, 0, 0x4000);
+    F2DumpCount = 0;
 }
 
 
@@ -158,6 +170,68 @@ void SetupBootloader()
 
     // bootloader
     memcpy(&WUP::MainRAM[0x3F0000], &Data[0x44], bootsize);
+}
+
+
+void F2Debug(u8 val)
+{
+    if (ByteCount == 1)
+    {
+        F2Mode = (val >> 6);
+        F2Length = ((val & 0x3F) << 8);
+        return;
+    }
+    if (ByteCount == 2)
+    {
+        F2Length |= val;
+        F2Count = 0;
+        return;
+    }
+
+    if (F2Count == F2Length)
+        return;
+
+    if (F2Mode == 0)
+    {
+        // hexdump
+
+        if ((F2Count & 0xF) == 0)
+            printf("%08X: ", F2Count);
+
+        printf("%02X ", val);
+        F2Count++;
+
+        if (((F2Count & 0xF) == 0) || (F2Count == F2Length))
+            printf("\n");
+    }
+    else if (F2Mode == 1)
+    {
+        // file dump
+
+        F2DumpBuf[F2Count++] = val;
+
+        if (F2Count == F2Length)
+        {
+            char filename[32];
+            sprintf(filename, "dump%d.bin", F2DumpCount++);
+            FILE* f = fopen(filename, "wb");
+            if (f)
+            {
+                fwrite(F2DumpBuf, F2Length, 1, f);
+                fclose(f);
+                printf("data dumped to %s\n", filename);
+            }
+            else
+                printf("failed to dump data to %s\n", filename);
+        }
+    }
+    else
+    {
+        // string
+
+        printf("%c", val);
+        F2Count++;
+    }
 }
 
 
@@ -280,6 +354,11 @@ void Write(u8 val)
         if (ByteCount <= AddrLen)
             CurAddr = (CurAddr << 8) | val;
         printf("SPI20: byte=%d len=%d addr=%08X\n", ByteCount, AddrLen, CurAddr);
+        break;
+
+    case 0xF2:
+        // FPGApad debug output
+        F2Debug(val);
         break;
     }
 
